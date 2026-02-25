@@ -6,6 +6,8 @@ A lightweight macOS menu bar app for managing your [OpenClaw](https://github.com
 ![Swift 5.9](https://img.shields.io/badge/Swift-5.9-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+![OpenClaw menu bar](docs/image1.jpeg)
+
 ## What it does
 
 OpenClaw for macOS lives in your menu bar and gives you one-click control over the OpenClaw MCP gateway:
@@ -14,6 +16,10 @@ OpenClaw for macOS lives in your menu bar and gives you one-click control over t
 - **Start / Stop / Restart** the gateway without opening a terminal
 - **Open Dashboard** — jump straight to the web UI
 - **Launch at Login** — optionally start the app when you log in
+
+## Download
+
+Grab the latest release from the [Releases page](https://github.com/f3r/openclaw-osx-tray/releases/latest) — download `OpenClaw-macos-arm64.zip`, unzip, and move `OpenClaw.app` to your Applications folder.
 
 ## Prerequisites
 
