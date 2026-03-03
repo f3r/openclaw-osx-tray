@@ -12,5 +12,6 @@ struct OpenClawTrayApp: App {
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(poller.status.iconColor)
         }
+        .menuBarExtraStyle(.window)
     }
 }

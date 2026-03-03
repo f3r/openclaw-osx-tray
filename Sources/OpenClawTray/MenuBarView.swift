@@ -3,82 +3,138 @@ import SwiftUI
 struct MenuBarView: View {
     @ObservedObject var poller: StatusPoller
     @State private var isPerformingAction = false
+    @State private var actionLabel: String?
+    @State private var errorMessage: String?
 
     var body: some View {
-        VStack {
+        VStack(alignment: .leading, spacing: 0) {
             statusHeader
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+
             Divider()
-            gatewayControls
+
+            VStack(alignment: .leading, spacing: 2) {
+                menuButton("Start Gateway", icon: "play.fill") {
+                    performAction(label: "Starting...") { try await GatewayService.start() }
+                }
+                .disabled(!poller.status.canStart || isPerformingAction)
+
+                menuButton("Stop Gateway", icon: "stop.fill") {
+                    performAction(label: "Stopping...") { try await GatewayService.stop() }
+                }
+                .disabled(!poller.status.canStop || isPerformingAction)
+
+                menuButton("Restart Gateway", icon: "arrow.clockwise") {
+                    performAction(label: "Restarting...") { try await GatewayService.restart() }
+                }
+                .disabled(isPerformingAction)
+            }
+            .padding(.vertical, 4)
+
             Divider()
-            dashboardButton
+
+            menuButton("Open Dashboard", icon: "globe") {
+                Task { try? await GatewayService.openDashboard() }
+            }
+            .disabled(poller.status != .running)
+            .padding(.vertical, 4)
+
             Divider()
-            launchAtLoginToggle
+
+            LaunchAtLoginToggle()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+
             Divider()
-            quitButton
+
+            menuButton("Quit OpenClaw", icon: "xmark.circle") {
+                NSApplication.shared.terminate(nil)
+            }
+            .padding(.vertical, 4)
         }
+        .frame(width: 220)
     }
 
     private var statusHeader: some View {
-        HStack {
-            Image(systemName: poller.status.icon)
-                .foregroundStyle(poller.status.iconColor)
-            Text("Gateway: \(poller.status.label)")
-                .font(.headline)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-    }
-
-    private var gatewayControls: some View {
-        Group {
-            Button("Start Gateway") {
-                performAction { try await GatewayService.start() }
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: poller.status.icon)
+                    .foregroundStyle(poller.status.iconColor)
+                Text("Gateway: \(poller.status.label)")
+                    .font(.headline)
             }
-            .disabled(!poller.status.canStart || isPerformingAction)
 
-            Button("Stop Gateway") {
-                performAction { try await GatewayService.stop() }
+            if let actionLabel {
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(actionLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .disabled(!poller.status.canStop || isPerformingAction)
 
-            Button("Restart Gateway") {
-                performAction { try await GatewayService.restart() }
-            }
-            .disabled(isPerformingAction)
-        }
-    }
-
-    private var dashboardButton: some View {
-        Button("Open Dashboard") {
-            Task {
-                try? await GatewayService.openDashboard()
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
             }
         }
-        .disabled(poller.status != .running)
     }
 
-    private var launchAtLoginToggle: some View {
-        LaunchAtLoginToggle()
-    }
-
-    private var quitButton: some View {
-        Button("Quit OpenClaw") {
-            NSApplication.shared.terminate(nil)
+    private func menuButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .frame(width: 16)
+                Text(title)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
         }
-        .keyboardShortcut("q")
+        .buttonStyle(.plain)
     }
 
-    private func performAction(_ action: @escaping () async throws -> Void) {
+    private func performAction(label: String, _ action: @escaping () async throws -> Void) {
         isPerformingAction = true
+        actionLabel = label
+        errorMessage = nil
+        let statusBeforeAction = poller.status
+
         Task {
             do {
                 try await action()
             } catch {
-                NSLog("Gateway action failed: \(error.localizedDescription)")
+                errorMessage = error.localizedDescription
+                scheduleErrorDismissal()
             }
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            await poller.checkNow()
+
+            actionLabel = nil
+
+            for _ in 0..<8 {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                await poller.checkNow()
+                if poller.status != statusBeforeAction {
+                    break
+                }
+            }
+
             isPerformingAction = false
+        }
+    }
+
+    private func scheduleErrorDismissal() {
+        Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            if errorMessage != nil {
+                errorMessage = nil
+            }
         }
     }
 }
