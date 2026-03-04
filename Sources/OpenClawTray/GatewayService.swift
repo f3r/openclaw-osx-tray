@@ -18,25 +18,36 @@ enum GatewayService {
         try await run(subcommand: "gateway", command: "install")
     }
 
-    static func openDashboard() async throws {
-        try await run(subcommand: nil, command: "dashboard")
+    static func dashboardURL() async throws -> URL {
+        let output = try await run(subcommand: nil, command: "dashboard", arguments: ["--no-open"])
+        guard let range = output.range(of: "http[^\\s]+", options: .regularExpression),
+              let url = URL(string: String(output[range])) else {
+            throw GatewayError.commandFailed(command: "dashboard", status: 0, output: output)
+        }
+        return url
     }
 
     private static let processTimeout: TimeInterval = 15
 
     @discardableResult
-    private static func run(subcommand: String? = "gateway", command: String) async throws -> String {
+    private static func run(subcommand: String? = "gateway", command: String, arguments extraArgs: [String] = []) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let process = Process()
                 let pipe = Pipe()
 
                 process.executableURL = URL(fileURLWithPath: Constants.binaryPath)
+                var args: [String] = []
                 if let subcommand {
-                    process.arguments = [subcommand, command]
-                } else {
-                    process.arguments = [command]
+                    args.append(subcommand)
                 }
+                args.append(command)
+                args.append(contentsOf: extraArgs)
+                process.arguments = args
+                process.environment = ProcessInfo.processInfo.environment.merging([
+                    "HOME": NSHomeDirectory(),
+                    "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                ]) { _, new in new }
                 process.standardOutput = pipe
                 process.standardError = pipe
 

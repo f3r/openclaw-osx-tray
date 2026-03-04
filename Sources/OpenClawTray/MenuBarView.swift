@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct MenuBarView: View {
@@ -35,7 +36,10 @@ struct MenuBarView: View {
             Divider()
 
             menuButton("Open Dashboard", icon: "globe") {
-                Task { try? await GatewayService.openDashboard() }
+                Task {
+                    guard let url = try? await GatewayService.dashboardURL() else { return }
+                    NSWorkspace.shared.open(url)
+                }
             }
             .disabled(poller.status != .running)
             .padding(.vertical, 4)
