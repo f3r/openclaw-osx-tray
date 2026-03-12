@@ -16,23 +16,23 @@ struct MenuBarView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 2) {
-                menuButton("Start Gateway", icon: "play.fill") {
+                menuButton("Start All", icon: "play.fill") {
                     performAction(label: "Starting...") {
                         try await LiteLLMService.start()
                         try await GatewayService.start()
                     }
                 }
-                .disabled(!poller.status.canStart || isPerformingAction)
+                .disabled((!poller.status.canStart && !poller.litellmStatus.canStart) || isPerformingAction)
 
-                menuButton("Stop Gateway", icon: "stop.fill") {
+                menuButton("Stop All", icon: "stop.fill") {
                     performAction(label: "Stopping...") {
                         try await GatewayService.stop()
                         try await LiteLLMService.stop()
                     }
                 }
-                .disabled(!poller.status.canStop || isPerformingAction)
+                .disabled((!poller.status.canStop && !poller.litellmStatus.canStop) || isPerformingAction)
 
-                menuButton("Restart Gateway", icon: "arrow.clockwise") {
+                menuButton("Restart All", icon: "arrow.clockwise") {
                     performAction(label: "Restarting...") {
                         try await GatewayService.stop()
                         try await LiteLLMService.stop()
@@ -41,6 +41,39 @@ struct MenuBarView: View {
                     }
                 }
                 .disabled(isPerformingAction)
+            }
+            .padding(.vertical, 4)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 2) {
+                menuButton("Start LiteLLM", icon: "play.fill") {
+                    performAction(label: "Starting LiteLLM...") {
+                        try await LiteLLMService.start()
+                    }
+                }
+                .disabled(!poller.litellmStatus.canStart || isPerformingAction)
+
+                menuButton("Stop LiteLLM", icon: "stop.fill") {
+                    performAction(label: "Stopping LiteLLM...") {
+                        try await LiteLLMService.stop()
+                    }
+                }
+                .disabled(!poller.litellmStatus.canStop || isPerformingAction)
+
+                menuButton("Start Gateway", icon: "play.fill") {
+                    performAction(label: "Starting Gateway...") {
+                        try await GatewayService.start()
+                    }
+                }
+                .disabled(!poller.status.canStart || isPerformingAction)
+
+                menuButton("Stop Gateway", icon: "stop.fill") {
+                    performAction(label: "Stopping Gateway...") {
+                        try await GatewayService.stop()
+                    }
+                }
+                .disabled(!poller.status.canStop || isPerformingAction)
             }
             .padding(.vertical, 4)
 
