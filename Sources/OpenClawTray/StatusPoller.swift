@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class StatusPoller: ObservableObject {
     @Published private(set) var status: GatewayStatus = .unknown
+    @Published private(set) var litellmStatus: GatewayStatus = .unknown
 
     private var timer: Timer?
 
@@ -17,8 +18,16 @@ final class StatusPoller: ObservableObject {
     }
 
     func checkNow() async {
-        let newStatus = await Self.probe()
-        status = newStatus
+        async let gw = Self.probe()
+        async let ll = Self.probeLiteLLM()
+        status = await gw
+        litellmStatus = await ll
+    }
+
+    var overallIconColor: Color {
+        if status == .running && litellmStatus == .running { return .green }
+        if status == .stopped && litellmStatus == .stopped { return .gray }
+        return .orange
     }
 
     private func startPolling() {
@@ -42,6 +51,23 @@ final class StatusPoller: ObservableObject {
             let (_, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse,
                (200...499).contains(httpResponse.statusCode) {
+                return .running
+            }
+            return .stopped
+        } catch {
+            return .stopped
+        }
+    }
+
+    private static func probeLiteLLM() async -> GatewayStatus {
+        var request = URLRequest(url: Constants.litellmHealthURL)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 3
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse,
+               httpResponse.statusCode == 200 {
                 return .running
             }
             return .stopped

@@ -17,17 +17,28 @@ struct MenuBarView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 menuButton("Start Gateway", icon: "play.fill") {
-                    performAction(label: "Starting...") { try await GatewayService.start() }
+                    performAction(label: "Starting...") {
+                        try await LiteLLMService.start()
+                        try await GatewayService.start()
+                    }
                 }
                 .disabled(!poller.status.canStart || isPerformingAction)
 
                 menuButton("Stop Gateway", icon: "stop.fill") {
-                    performAction(label: "Stopping...") { try await GatewayService.stop() }
+                    performAction(label: "Stopping...") {
+                        try await GatewayService.stop()
+                        try await LiteLLMService.stop()
+                    }
                 }
                 .disabled(!poller.status.canStop || isPerformingAction)
 
                 menuButton("Restart Gateway", icon: "arrow.clockwise") {
-                    performAction(label: "Restarting...") { try await GatewayService.restart() }
+                    performAction(label: "Restarting...") {
+                        try await GatewayService.stop()
+                        try await LiteLLMService.stop()
+                        try await LiteLLMService.start()
+                        try await GatewayService.start()
+                    }
                 }
                 .disabled(isPerformingAction)
             }
@@ -64,6 +75,12 @@ struct MenuBarView: View {
 
     private var statusHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: "server.rack")
+                    .foregroundStyle(poller.litellmStatus.iconColor)
+                Text("LiteLLM: \(poller.litellmStatus.label)")
+                    .font(.headline)
+            }
             HStack {
                 Image(systemName: poller.status.icon)
                     .foregroundStyle(poller.status.iconColor)
@@ -109,7 +126,8 @@ struct MenuBarView: View {
         isPerformingAction = true
         actionLabel = label
         errorMessage = nil
-        let statusBeforeAction = poller.status
+        let gwBefore = poller.status
+        let llBefore = poller.litellmStatus
 
         Task {
             do {
@@ -124,7 +142,7 @@ struct MenuBarView: View {
             for _ in 0..<8 {
                 try? await Task.sleep(nanoseconds: 500_000_000)
                 await poller.checkNow()
-                if poller.status != statusBeforeAction {
+                if poller.status != gwBefore || poller.litellmStatus != llBefore {
                     break
                 }
             }
