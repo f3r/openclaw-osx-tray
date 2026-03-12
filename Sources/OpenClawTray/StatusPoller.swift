@@ -67,7 +67,7 @@ final class StatusPoller: ObservableObject {
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse,
-               httpResponse.statusCode == 200 {
+               (200...499).contains(httpResponse.statusCode) {
                 return .running
             }
             return .stopped

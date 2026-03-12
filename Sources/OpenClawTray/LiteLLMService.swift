@@ -27,7 +27,7 @@ enum LiteLLMService {
 
         process = proc
 
-        for _ in 0..<10 {
+        for _ in 0..<15 {
             try await Task.sleep(nanoseconds: 1_000_000_000)
             if await isHealthy() { return }
         }
@@ -78,7 +78,7 @@ enum LiteLLMService {
 
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+            if let http = response as? HTTPURLResponse, (200...499).contains(http.statusCode) {
                 return true
             }
             return false
@@ -98,7 +98,7 @@ enum LiteLLMError: LocalizedError {
         case let .startFailed(reason):
             return "LiteLLM failed to start: \(reason)"
         case .healthCheckFailed:
-            return "LiteLLM started but health check failed after 10 attempts"
+            return "LiteLLM started but health check failed after 15 attempts"
         case .notRunning:
             return "LiteLLM is not running"
         }
